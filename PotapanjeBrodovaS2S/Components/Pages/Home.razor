@@ -1,0 +1,58 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.SignalR.Client
+@using PotapanjeBrodovaS2S.Models.Utils
+@inject NavigationManager NavManager
+
+
+<PageTitle>Potapanje Brodova</PageTitle>
+@* 
+<h1>Potapanje brodova</h1>
+
+<Forma></Forma> *@
+
+<div class="auth-page">
+
+    <h1 class="auth-main-title">
+        POTAPANJE BRODOVA
+    </h1>
+
+    <Forma />
+
+</div>
+
+@code{
+
+
+
+
+}
+
+<style>
+    .auth-page {
+        width: 100%;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        box-sizing: border-box;
+        padding: 45px 20px;
+    }
+
+    .auth-main-title {
+        margin: 20px 0 35px;
+        width: 100%;
+
+        font-family: 'Press Start 2P', monospace;
+        font-size: clamp(24px, 4.5vw, 58px);
+        line-height: 1.6;
+        font-weight: 400;
+        text-align: center;
+
+        color: #F5E6C8;
+        text-shadow:
+            4px 4px 0 #2B1B0F,
+            7px 7px 0 rgba(0, 0, 0, 0.2);
+    }
+
+    
+</style>

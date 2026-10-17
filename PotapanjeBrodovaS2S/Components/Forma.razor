@@ -1,0 +1,185 @@
+﻿@using PotapanjeBrodovaS2S.Models
+@using PotapanjeBrodovaS2S.Models.Utils
+@using PotapanjeBrodovaS2S.Servisi
+@rendermode InteractiveServer
+@inject Komunikacija Komunikacija
+@inject IJSRuntime js
+@inject NavigationManager NavManager
+
+<!-- PRVO HTML SA PROMENOM STANJA FORME I PRIKUPLJANJEM IMENA I LOZINKE PA POSLE SVE DO REIGSTRACIJE KADA SE POZIVA KOMUNIKACIJA -->
+
+<p class="auth-title">
+    @(statusPrijave == StatusPrijave.Prijava ? "Prijavi se!" : "Registruj se!")
+</p>
+
+<label class="auth-label">Korisničko ime</label>
+<input class="player-input auth-input" type="text" @bind="Ime" placeholder="Korisničko ime" />
+
+<label class="auth-label">Lozinka</label>
+<input class="player-input auth-input" type="password" @bind="Lozinka" placeholder="Lozinka" />
+
+<button class="auth-button" @onclick="@(statusPrijave == StatusPrijave.Registracija ? Registracija : Prijava)">
+    @(statusPrijave == StatusPrijave.Prijava ? "Prijavi se!" : "Registruj se!")
+</button>
+
+<button class="auth-switch" @onclick="PromenaStatusaPrijave">
+    @(statusPrijave == StatusPrijave.Prijava ? "Registruj se!" : "Prijavi se!")
+</button>
+
+
+@code {
+    StatusPrijave statusPrijave = StatusPrijave.Prijava;
+
+    void PromenaStatusaPrijave()
+    {
+        if(statusPrijave == StatusPrijave.Prijava)
+        {
+            statusPrijave = StatusPrijave.Registracija;
+
+        }
+        else
+        {
+            statusPrijave = StatusPrijave.Prijava;
+        }
+
+    }
+
+    string Ime;
+    string Lozinka;
+    private async Task Registracija()
+    {
+        Igrac i = new Igrac
+            {
+                Nadimak = Ime,
+                Lozinka = Lozinka
+            };
+
+        // reci da ne bi smeo da UI/ klijentski deo direktno komunicira sa bazom nego radimo to preko layera Komunikacije 
+        // ali pre toga prvo bazu treba da implementiramo, prvo konekciju pa brokera
+
+
+        //inject Komunikaciju - dependecy injection - uvozimo klasu tj servis koju korisimo, trenutna klasa ne mora da zna nista o njoj, samo joj je bitno da radi a ne implementacija
+        Igrac? igrac = await Komunikacija.RegistrujIgraca(i);
+        if(igrac == null)
+        {
+            await js.InvokeVoidAsync("alert", "Greska");
+        }
+        else
+        {
+            await js.InvokeVoidAsync("alert", "Uspesno ste se registrovali, mozete se prijaviti na igru!");
+        }
+    }
+
+    private async Task Prijava()
+    {
+        Igrac i = new Igrac
+        {
+            Nadimak = Ime,
+            Lozinka = Lozinka
+        };
+        Igrac? prijavljeniIgrac = await Komunikacija.PrijaviIgraca(i);
+        if (prijavljeniIgrac == null)
+        {
+            await js.InvokeVoidAsync("alert", "Ne postoji igrac sa ovim kredencijalima");
+        }
+        else
+        {
+            // inject 
+            NavManager.NavigateTo("/lobby");
+        }
+    }
+
+
+
+}
+
+<style>
+    
+    .auth-title {
+        font-family: 'Press Start 2P', monospace;
+        font-size: 22px;
+        color: #F5E6C8;
+        text-align: center;
+        text-shadow: 3px 3px 0 #2B1B0F;
+        margin: 35px 0;
+    }
+
+    .auth-label {
+        display: block;
+        margin: 22px 0 10px;
+        color: #EAF2F8;
+        font-family: 'Franklin Gothic Medium', Arial, sans-serif;
+        font-size: 22px;
+        font-weight: bold;
+        text-align: center;
+    }
+
+    .auth-input {
+        display: block;
+        width: 320px;
+        max-width: 100%;
+        box-sizing: border-box;
+        margin: 0 auto 20px;
+        font-size: 14px;
+    }
+
+        .auth-input::placeholder {
+            color: #B8C9D8;
+            font-family: 'Franklin Gothic Medium', Arial, sans-serif;
+            font-size: 15px;
+        }
+
+        .auth-input:focus {
+            border-color: #F7D65C;
+            box-shadow: 0 0 18px rgba(247, 214, 92, .4);
+        }
+
+    .auth-button,
+    .auth-switch {
+        display: block;
+        width: 320px;
+        max-width: 100%;
+        box-sizing: border-box;
+        margin: 25px auto 0;
+        padding: 15px 12px;
+        font-family: 'Press Start 2P', monospace;
+        font-size: 11px;
+        line-height: 1.8;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: .2s;
+    }
+
+    .auth-button {
+        background: #8B5A2B;
+        color: white;
+        border: 2px solid #D4AF37;
+        box-shadow: 0 4px 0 #4A301B;
+    }
+
+        .auth-button:hover {
+            background: #6E4420;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, .3);
+        }
+
+        .auth-button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #4A301B;
+        }
+
+    .auth-switch {
+        margin-top: 16px;
+        background: #24496D;
+        color: #F5E6C8;
+        border: 2px solid #B0BEC5;
+    }
+
+        .auth-switch:hover {
+            background: #315D83;
+            border-color: #F7D65C;
+            transform: translateY(-2px);
+        }
+
+    
+</style>

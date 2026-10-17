@@ -1,0 +1,343 @@
+﻿@page "/game/{kod}" 
+@using PotapanjeBrodovaS2S.Models
+@using PotapanjeBrodovaS2S.Models.Utils
+@using PotapanjeBrodovaS2S.Servisi
+@inject IJSRuntime JS
+@inject Komunikacija Komunikacija
+@inject NavigationManager NavManager
+
+<!-- delimo igru na dva dela pre pocetka bitke kada postavljamo brodove i na samu bitku-->
+<!-- prvo pravimo klasu Tablu, Polje -->
+@if (!BitkaPokrenuta)
+{
+    <div class="brodovi-panel">
+
+        <div class="brodovi-panel">
+
+            <!-- napraviti jedan pa kopirati ostale, pre kopiranja napraviti PromeniTipBroda -->
+            <div class="brod-item">
+                <button @onclick="() => PromeniTipBroda(TipBroda.JednoPolje)">
+                    Brod od 1. polja
+                </button>
+                <p>@($"{tabla.trenutnoJednoPolje} / {tabla.maxJednoPolje}")</p>
+            </div>
+
+            <div class="brod-item">
+                <button @onclick="() => PromeniTipBroda(TipBroda.DvaPolja)">
+                    Brod od 2. polja
+                </button>
+                <p>@($"{tabla.trenutnoDvaPolja} / {tabla.maxDvaPolja}")</p>
+            </div>
+
+            <div class="brod-item">
+                <button @onclick="() => PromeniTipBroda(TipBroda.TriPolja)">
+                    Brod od 3. polja
+                </button>
+                <p>@($"{tabla.trenutnoTriPolja} / {tabla.maxTriPolja}")</p>
+            </div>
+
+            <div class="brod-item">
+                <button @onclick="() => PromeniTipBroda(TipBroda.CetriPolja)">
+                    Brod od 4. polja
+                </button>
+                <p>@($"{tabla.trenutnoCetiriPolja} / {tabla.maxCetriPolja}")</p>
+            </div>
+
+            <div class="brod-item">
+                <button @onclick="PromeniOrjentaciju">
+                    @(horizontalno ? "Horizontalno" : "Vertikalno")
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!--na pocetku napraviti samo promeljivu tabla a levi i desni klik posle dodati nakon implementacije funkicja -->
+    <div class="tabla-wrapper">
+        <TablaKomponenta MojaTabla="tabla"
+                         LeviKlikNaPolje="PostaviBrod"
+                         DesniKlikNaPolje="UkloniBrod" />
+    </div>
+    @if (tabla.ukupnoPostavljeno == 20 && !TablaPoslata)
+    {
+        <div class="brod-item" style="margin-top: 25px">
+            <button @onclick="async () => { await PosaljiTablu(tabla); }">
+                Potvrdi tablu!
+            </button>
+        </div>
+    }else if (TablaPoslata)
+    {
+        <div class="div-pucaj">
+            <p>Igra će krenuti kada protivnik potvrdi tablu!</p>
+        </div>
+    }
+}
+else
+{
+    if (!kraj)
+    {
+        <div class="game-container tabla-wrapper">
+            <TablaKomponenta MojaTabla="tabla"> </TablaKomponenta>
+            <div style="width:15%;"></div>
+            <TablaKomponenta MojaTabla="ProtivnikovaTabla" LeviKlikNaPolje="OdaberiPolje"></TablaKomponenta>
+        </div>
+
+        <div class="div-pucaj">
+            <p> @(odabranoPolje == null ? "Odaberite polje" : "Odabrano polje: " + odabranoPolje.ToString())</p>
+            <button @onclick="() => { PosaljiPotez(odabranoPolje!); }" disabled="@(!NaPotezu)"> @(NaPotezu ? "Pucaj!" : "Protivnik je na potezu!")</button>
+        </div>
+    }
+    else
+    {
+        <div class="game-container tabla-wrapper">
+            <TablaKomponenta MojaTabla="tabla"> </TablaKomponenta>
+            <div style="width:15%;"></div>
+            <TablaKomponenta MojaTabla="ProtivnikovaTabla" LeviKlikNaPolje="OdaberiPolje"></TablaKomponenta>
+        </div>
+
+        <div class="div-pucaj">
+            <p>@(pobednickaPoruka) </p>
+            <button @onclick="VratiSeULobby" >Izadji </button>
+        </div>
+    }
+
+  
+    
+}
+
+@code {
+    //OVO MORA ODMAH INACE PUCA 
+    [Parameter]
+    public string kod { get; set; } = string.Empty;
+
+    private Tabla tabla = new Tabla();
+
+    bool BitkaPokrenuta = false;
+    bool TablaPoslata = false;
+    
+   
+    
+    Polje? odabranoPolje;
+    Tabla? ProtivnikovaTabla = new Tabla();
+    bool NaPotezu = false;
+    int bodovi = 0;
+    bool kraj = false;
+    string pobednickaPoruka = "";
+
+    protected override void OnInitialized()
+    {
+        Komunikacija.PokreniBitkuEvent += OnPokreniBitku;
+        Komunikacija.OdigranPotezEvent += OnOdigranPotez;
+        Komunikacija.OglasiPobeduEvent += OnOglasiPobedu;
+
+    }
+
+    #region Postavka
+
+
+
+
+    TipBroda izbaraniBroj = TipBroda.JednoPolje;
+    bool horizontalno = false;
+
+    public void PromeniTipBroda(TipBroda tip)
+    {
+        izbaraniBroj = tip;
+    }
+
+    public void PromeniOrjentaciju()
+    {
+        horizontalno = horizontalno ? false : true;
+    }
+
+    public async Task PostaviBrod(Polje polje)
+    {
+        try
+        {
+            tabla.PostaviBrod(polje, (int)izbaraniBroj, horizontalno);
+            StateHasChanged();
+        }
+        catch(Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", ex.Message);
+        }
+    }
+
+    //prvo implementiraj u klasi
+    public void UkloniBrod(Polje p)
+    {
+        tabla.IzbirisiBrod(p, (int)izbaraniBroj);
+        StateHasChanged();
+    }
+
+
+    // sad u htmlu dodati dugme za dodavanje table pa se vbratiti ovdfe
+    public async Task PosaljiTablu(Tabla tabla)
+    {
+        await Komunikacija.PosaljiTablu(tabla);
+        TablaPoslata = true;
+    }
+
+    public void OnPokreniBitku()
+    {
+        InvokeAsync(() =>
+        {
+            BitkaPokrenuta = true;
+            NaPotezu = Komunikacija.NaPotezu;
+            StateHasChanged();
+        });
+
+    }
+    #endregion
+
+
+    public async Task PosaljiPotez(Polje polje)
+    {
+        if(polje == null)
+        {
+            await JS.InvokeVoidAsync("alert", "Morate da odaberete polje pre poteza");
+            return;
+        }
+        if(ProtivnikovaTabla.Polja[polje.Red][(int)polje.Kolona].Stanje != RezultatPoteza.NEODIGRANO)
+        {
+            await JS.InvokeVoidAsync("alert", "Vec srte gadjali ovo polje");
+            return;
+        }
+        await Komunikacija.PosaljiPotez(polje);
+
+    }
+    public void OdaberiPolje(Polje polje)
+    {
+
+        odabranoPolje = polje;
+
+    }
+    public void OnOdigranPotez(List<Polje> polja,RezultatPoteza rezultat, string nadimak )
+    {
+        InvokeAsync(() =>
+        {
+            Tabla t = Komunikacija.prijavljenIgrac.Nadimak == nadimak ? ProtivnikovaTabla : tabla;
+            foreach (Polje p in polja)
+            {
+                t.Polja[p.Red][(int)p.Kolona].Stanje = rezultat;
+            }
+            if (nadimak == Komunikacija.prijavljenIgrac.Nadimak)
+            {
+                bodovi = rezultat != RezultatPoteza.PROMASENO ? bodovi += 1 : bodovi;
+                NaPotezu = rezultat != RezultatPoteza.PROMASENO;
+            }
+            else
+            {
+                NaPotezu = rezultat == RezultatPoteza.PROMASENO;
+            }
+            if(bodovi == 20)
+            {
+                Komunikacija.ProglasiPobedu();
+            }
+            StateHasChanged();
+        });
+
+
+
+    }
+
+    public void OnOglasiPobedu(string poruka)
+    {
+        InvokeAsync(() =>
+        {
+            pobednickaPoruka = poruka;
+            kraj = true;
+            StateHasChanged();
+        });
+    }
+
+    public void VratiSeULobby()
+    {
+        NavManager.NavigateTo("/lobby");
+    }
+
+}
+
+
+
+
+
+
+
+<style>
+
+    .game-container {
+        display: flex;
+        flex-direction: row;
+        justify-items: flex-start;
+        justify-content: space-evenly;
+        width: 100%;
+    }
+
+    .div-pucaj {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    
+    .tabla-wrapper {
+        display: flex;
+        justify-content: center;
+        margin-top: 30px;
+        margin: 30px;
+    }
+
+    .brodovi-panel {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        gap: 25px;
+        margin: 20px 0;
+        flex-wrap: wrap;
+    }
+
+    .brod-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+        .brod-item p {
+            margin-top: 10px;
+            text-align: center;
+            color: white;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 10px;
+        }
+
+    button {
+        background: #8B5A2B;
+        color: white;
+        border: 2px solid #D4AF37;
+        border-radius: 10px;
+        padding: 16px 22px;
+        min-width: 180px;
+        min-height: 70px;
+        font-family: 'Press Start 2P', cursive;
+        font-size: 10px;
+        transition: .2s;
+        cursor: pointer;
+    }
+
+        button:hover {
+            background: #6E4420;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,.3);
+        }
+
+    p {
+        color: #EAF2F8;
+        font-family: 'Press Start 2P', 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif, cursive;
+        text-decoration: underline;
+        font-weight: bolder;
+        font-size: 32px;
+    }
+
+    
+</style>

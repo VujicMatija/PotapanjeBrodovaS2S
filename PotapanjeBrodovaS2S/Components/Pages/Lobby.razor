@@ -1,0 +1,442 @@
+﻿@page "/lobby"
+@using PotapanjeBrodovaS2S.Models
+@using PotapanjeBrodovaS2S.Models.Utils
+@using PotapanjeBrodovaS2S.Servisi
+@inject NavigationManager NavManager
+@inject Komunikacija Komunikacija
+@inject IJSRuntime JS
+
+<!-- DODATI INTERAKTIVNI SERVER PRERENDER FALSE u app.razoru-->
+<!-- prvo dodati soba klasu -->
+<h1 class="auth-main-title">
+    POTAPANJE BRODOVA
+</h1>
+
+@if(soba != null && soba.Spremna)//ovde moze pitanje da li moze drugim redosledom
+{
+    <div class="lobby-panel">
+
+           
+
+        <div class="players">
+
+            <div class="player-card">
+
+                <p>@soba.IgracA.Nadimak</p>
+            </div>
+
+            <div class="vs">VS</div>
+
+            <div class="player-card">
+
+                <p>@soba.IgracB.Nadimak</p>
+            </div>
+
+        </div>
+
+        @if (Komunikacija.prijavljenIgrac.Nadimak == soba.IgracA.Nadimak)
+        {
+            <button class="start-btn" @onclick="PokreniIgru">
+                Pokreni igru
+            </button>
+        }
+        else
+        {
+            <p class="waiting-host">
+                Čeka se da admin pokrene igru...
+            </p>
+        }
+
+    </div>
+}// prvo ovo kao bez else ovo  gore se dodaje posle, KREIRATI ENUM STANJE SOBE
+else if (stanjeSobe == StanjeSobe.IzborOpcije)
+{
+    <p>@(Komunikacija.prijavljenIgrac.Nadimak), spremni za borbu?</p>
+    <button @onclick="KreirajSobu">Kreiraj sobu!</button>
+    <button @onclick="()=>{stanjeSobe = StanjeSobe.PridruziSeSobi;}">Pridruzi se sobi!</button>
+}else if(stanjeSobe == StanjeSobe.KreirajSobu)
+{
+    <div class="room-created-panel">
+
+        <button class="close-btn" @onclick="()=>{stanjeSobe = StanjeSobe.IzborOpcije;}" >
+            ✕
+        </button>
+
+        <h2>SOBA JE KREIRANA</h2>
+
+        <p class="waiting-text">
+            Podeli kod sa drugim igračem
+        </p>
+
+        <div class="room-code">
+            @(soba.Kod)
+        </div>
+
+        <p class="waiting-player">
+            Čekanje drugog igrača...
+        </p>
+
+    </div>
+    // sad preci na kod za pravljenje sobe pa tek onda pridruzivanje
+}else if(stanjeSobe == StanjeSobe.PridruziSeSobi)
+{
+    <div class="join-room-panel">
+
+        <button class="close-btn" @onclick="()=>{stanjeSobe = StanjeSobe.IzborOpcije;}">
+            ✕
+        </button>
+
+                   
+
+        <p class="room-label">Unesi kod sobe</p>
+
+        <input class="player-input room-input"
+               type="text"
+               maxlength="6"
+               @bind="kod"
+               @bind:event="oninput"
+               />
+
+        <button class="join-btn" @onclick="PridruziSeSobi">
+            Pridruži se sobi!
+        </button>
+
+    </div>
+}
+
+    
+
+
+
+@code {
+    StanjeSobe stanjeSobe = StanjeSobe.IzborOpcije;
+
+    Soba? soba;
+    string kod = "";
+
+    protected override void OnInitialized()
+    {
+        Komunikacija.SobaSpremnaEvent += OnSobaSpremna;
+        Komunikacija.PokreniIgruEvent += OnPokreniIgru;
+    }
+
+
+
+    public async Task KreirajSobu()
+    {
+        soba =await Komunikacija.KreirajSobu();
+        stanjeSobe = StanjeSobe.KreirajSobu;
+    }
+
+    public async Task PridruziSeSobi()
+    {
+        soba =   await Komunikacija.PridruziSeSobi(kod);
+        if(soba == null)
+        {
+            await JS.InvokeVoidAsync("alert", "Soba ne postoji ili je puna!");
+        }
+    }
+
+
+    public void OnSobaSpremna()
+    {
+        InvokeAsync(() => {
+            soba = Komunikacija.trenutnaSoba;
+            StateHasChanged();
+        });
+
+    }
+    private async void PokreniIgru()
+    {
+        //prvo obavestavamo preko komunikacije i servera drugog igraca da je igra pokrenuta
+        await Komunikacija.PokreniIgru();
+        //prelazimo na sledecu stranicu
+        NavManager.NavigateTo($"/game/{soba.Kod}");
+    }
+
+    private void OnPokreniIgru()
+    {
+        InvokeAsync(() =>
+        {
+            NavManager.NavigateTo($"/game/{soba.Kod}");
+        });
+    }
+}
+
+<style>
+
+    .lobby-panel {
+        margin-top: 60px;
+        width: 650px;
+        background: rgba(20,44,68,.8);
+        border: 3px solid #D4AF37;
+        border-radius: 16px;
+        padding: 35px;
+        box-shadow: 0 0 25px rgba(0,0,0,.35), inset 0 0 10px rgba(255,255,255,.05);
+        animation: sailIn .4s ease;
+    }
+
+        .lobby-panel h2 {
+            text-align: center;
+            font-family: 'Press Start 2P';
+            font-size: 20px;
+            color: #F5E6C8;
+            text-shadow: 3px 3px 0 #2B1B0F;
+            margin-bottom: 40px;
+        }
+
+    .players {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 45px;
+    }
+
+    .player-card {
+        width: 220px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        background: rgba(255,255,255,.05);
+        border: 2px solid #D4AF37;
+        border-radius: 12px;
+    }
+
+        .player-card p {
+            margin-top: 15px;
+            font-size: 22px;
+            font-family: 'Press Start 2P';
+            color: #F5E6C8;
+        }
+
+    .captain-icon {
+        font-size: 42px;
+    }
+
+    .vs {
+        font-family: 'Press Start 2P';
+        color: #F7D65C;
+        font-size: 26px;
+        text-shadow: 2px 2px 0 #2B1B0F;
+    }
+
+    .start-btn {
+        width: 100%;
+        margin: 0;
+        font-family: 'Press Start 2P';
+        font-size: 16px;
+    }
+
+    .waiting-host {
+        text-align: center;
+        color: #F5E6C8;
+        animation: pulse 1.5s infinite;
+    }
+
+
+
+    .forma {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .close-btn {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 42px;
+        height: 42px;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        font-weight: bold;
+        background: #8B5A2B;
+        color: #F5E6C8;
+        border: 2px solid #D4AF37;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: .2s;
+    }
+
+        .close-btn:hover {
+            transform: rotate(90deg);
+            background: #A63A3A;
+        }
+
+    .room-created-panel {
+        position: relative;
+        margin-top: 60px;
+        width: 550px;
+        align-self: center;
+        background: rgba(20, 44, 68, 0.8);
+        border: 3px solid #D4AF37;
+        border-radius: 16px;
+        padding: 35px;
+        backdrop-filter: blur(4px);
+        box-shadow: 0 0 25px rgba(0,0,0,.35), inset 0 0 10px rgba(255,255,255,.05);
+        animation: sailIn .4s ease;
+    }
+
+        .room-created-panel h2 {
+            text-align: center;
+            color: #F5E6C8;
+            font-family: 'Press Start 2P';
+            font-size: 22px;
+            text-shadow: 3px 3px 0 #2B1B0F;
+            margin-bottom: 25px;
+        }
+
+    .waiting-text {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .room-code {
+        text-align: center;
+        font-family: 'Press Start 2P';
+        font-size: 42px;
+        color: #F7D65C;
+        letter-spacing: 8px;
+        padding: 20px;
+        border: 3px dashed #D4AF37;
+        border-radius: 12px;
+        background: rgba(0,0,0,.15);
+        margin-bottom: 25px;
+    }
+
+    .waiting-player {
+        text-align: center;
+        opacity: .9;
+    }
+
+    .close-btn {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        margin: 0;
+        font-size: 18px;
+        font-weight: bold;
+    }
+
+    .join-room-panel {
+        margin-top: 60px;
+        width: 500px;
+        align-self: center;
+        background: rgba(20, 44, 68, 0.75);
+        border: 3px solid #D4AF37;
+        border-radius: 16px;
+        padding: 35px;
+        backdrop-filter: blur(4px);
+        box-shadow: 0 0 25px rgba(0,0,0,.35), inset 0 0 10px rgba(255,255,255,.05);
+    }
+
+        .join-room-panel h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #F5E6C8;
+            font-family: 'Press Start 2P';
+            font-size: 22px;
+            text-shadow: 3px 3px 0 #2B1B0F;
+        }
+
+    .room-label {
+        text-align: center;
+        margin-bottom: 15px;
+    }
+
+    .room-input {
+        width: 100%;
+        text-align: center;
+        letter-spacing: 4px;
+        margin-bottom: 25px;
+    }
+
+    .join-btn {
+        width: 100%;
+        font-family: 'Press Start 2P';
+        font-size: 14px;
+    }
+
+    button {
+        background: #8B5A2B;
+        color: white;
+        border: 2px solid #D4AF37;
+        border-radius: 10px;
+        padding: 14px 45px;
+        margin: 0px 20px;
+        transition: .2s;
+    }
+
+        button:hover {
+            background: #6E4420;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,.3);
+        }
+
+    .forma {
+        margin-top: 90px;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    p {
+        color: #EAF2F8;
+        font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+        font-size: 24px;
+    }
+
+    .container {
+        margin-top: 30px;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    
+    .naslov {
+        font-family: 'Press Start 2P','Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+        color: #F5E6C8;
+        text-shadow: 3px 3px 0 #2B1B0F;
+        font-weight: 700;
+        font-size: 67px;
+        text-align: center;
+    }
+
+    .player-input {
+        font-family: 'Press Start 2P';
+        width: 320px;
+        padding: 14px 18px;
+        font-size: 20px;
+        background: #24496D;
+        border: 3px solid #B0BEC5;
+        color: white;
+        border-radius: 10px;
+        outline: none;
+        box-shadow: 0 3px 4px rgba(0,0,0,.4);
+        transition: .2s;
+    }
+
+        .player-input::placeholder {
+            color: #d7c7aa;
+        }
+
+        .player-input:focus {
+            border-color: #F7D65C;
+            box-shadow: 0 0 18px rgba(247,214,92,.4);
+        }
+</style>
+

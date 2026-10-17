@@ -1,0 +1,124 @@
+﻿@using PotapanjeBrodovaS2S.Models
+@using PotapanjeBrodovaS2S.Models.Utils
+@inject IJSRuntime JS
+
+
+<div class="tabla">
+    @foreach(var red in Enumerable.Range(0, 10))
+    {
+        @foreach(var kolona in Enumerable.Range(0, 10))
+        {
+            var polje = MojaTabla.Polja[red][kolona];
+            <div class="celija 
+                @(polje.Zauzeto ? "zauzeto" : "")
+                @(polje.Nedostupno ? "nedostupno" : "")
+                @(polje.Nedostupno ? "nedostupno" : "" )
+                @(polje.Stanje == RezultatPoteza.RANJEN ? "ranjen" : "")
+                @(polje.Stanje == RezultatPoteza.POTPOLJEN ? "potopljen" : "")
+                @(polje.Stanje == RezultatPoteza.PROMASENO ? "promasen" : "")"
+                 @onclick="() => LeviKlik(polje)"
+                 @oncontextmenu="() => DesniKlik(polje)"
+                 @oncontextmenu:preventDefault="true">
+            </div>
+        }
+    }
+</div>
+
+
+@code {
+    [Parameter]
+    public Tabla MojaTabla { get; set; } = new();
+    [Parameter]
+    public EventCallback<Polje> LeviKlikNaPolje { get; set; }
+
+    [Parameter]
+    public EventCallback<Polje> DesniKlikNaPolje { get; set; }
+
+  
+
+    [Parameter]
+    public bool omoguceno { get; set; } = true;
+
+    private async Task LeviKlik(Polje polje)
+    {
+        if (omoguceno)
+        {
+            await LeviKlikNaPolje.InvokeAsync(polje);
+        }
+
+    }
+
+    private async Task DesniKlik(Polje polje)
+    {
+        if (omoguceno)
+        {
+            await DesniKlikNaPolje.InvokeAsync(polje);
+        }
+
+    }
+
+    
+    
+}
+
+<style>
+
+    
+
+    .tabla {
+        background: rgba(0,0,0,.15);
+        padding: 15px;
+        border-radius: 12px;
+        border: 3px solid #D4AF37;
+        display: grid;
+        grid-template-columns: repeat(10, 45px);
+        grid-template-rows: repeat(10, 45px);
+        gap: 3px;
+        box-shadow: 0 0 10px rgba(212, 175, 55, 0.3), 0 0 20px rgba(212, 175, 55, 0.2);
+    }
+
+   
+
+    
+    .celija {
+        width: 45px;
+        height: 45px;
+        background-color: rgba(173,216,230,.8);
+        border: 1px solid #999;
+        cursor: pointer;
+    }
+
+    .zauzeto {
+        background-color: #7ed957;
+        border: 3px solid black;
+    }
+
+    .nedostupno {
+        background-color: ##c3cfe3;
+        border: 2px dotted black;
+        background-image: linear-gradient(to top right, transparent 49%, black 49.5%, black 50.5%, transparent 51%), linear-gradient(to top left, transparent 49%, black 49.5%, black 50.5%, transparent 51%);
+    }
+
+    .oznaceno {
+        border: 4px solid red;
+        background-color: #daebdf;
+    }
+
+    .ranjen {
+        background-color: yellow;
+    }
+
+    .potopljen {
+        background-color: red;
+    }
+
+    .promasen {
+        background-color: #c9c2af;
+        border: 2px dotted black;
+        background-image: linear-gradient(to top right, transparent 49%, black 49.5%, black 50.5%, transparent 51%), linear-gradient(to top left, transparent 49%, black 49.5%, black 50.5%, transparent 51%);
+    }
+
+    .selektovano {
+        border: 5px solid #e61010;
+    }
+</style>
